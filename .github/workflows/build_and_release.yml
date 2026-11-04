@@ -50,7 +50,13 @@ jobs:
       - name: Prepare APK Distribution
         run: |
           mkdir -p release-artifacts
-          cp build/app/outputs/flutter-apk/app-release.apk release-artifacts/Mic-Karaoke-v1.0.0.apk
+          TAG="${GITHUB_REF_NAME}"
+          if [[ "$TAG" != v* ]]; then
+            TAG="v1.0.1"
+          fi
+          echo "RELEASE_TAG=$TAG" >> $GITHUB_ENV
+          cp build/app/outputs/flutter-apk/app-release.apk release-artifacts/Mic-Karaoke-v1.0.1.apk
+          cp build/app/outputs/flutter-apk/app-release.apk release-artifacts/Mic-Karaoke-${TAG}.apk
           cp build/app/outputs/flutter-apk/app-release.apk release-artifacts/app-release.apk
 
       - name: Upload APK Artifact
@@ -64,21 +70,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view v1.0.0 > /dev/null 2>&1; then
-            echo "Release v1.0.0 exists. Uploading APK assets..."
-            gh release upload v1.0.0 release-artifacts/Mic-Karaoke-v1.0.0.apk release-artifacts/app-release.apk --clobber
+          TAG="${RELEASE_TAG:-v1.0.1}"
+          echo "Target Release Tag: $TAG"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG exists. Uploading APK assets..."
+            gh release upload "$TAG" release-artifacts/*.apk --clobber
           else
-            echo "Creating Release v1.0.0..."
-            gh release create v1.0.0 \
-              --title "Mic v1.0.0 — Real-Time Karaoke Microphone" \
-              --notes "### 🎙️ Mic — Real-Time Karaoke Microphone App for JBL Charge 6
+            echo "Creating Release $TAG..."
+            gh release create "$TAG" \
+              --title "Mic $TAG — Real-Time Karaoke Microphone (Google Oboe Engine)" \
+              --notes "### 🎙️ Mic $TAG — Real-Time Karaoke Microphone App
 
-          Download **Mic-Karaoke-v1.0.0.apk** below and install it directly on your phone!
+          Download **Mic-Karaoke-v1.0.1.apk** below and install it directly on your phone!
 
-          - **Real-Time Vocal Routing:** Ultra-low latency DSP engine (<5ms).
-          - **Concurrent Background Mixing:** Mixes with Spotify, YouTube & Apple Music without ducking.
-          - **Karaoke Effects:** Preamp Volume Boost, Circular Echo, and Concert-Hall Reverb.
-          - **Acoustic Safety:** Anti-Howling protective ducking & Bluetooth disconnect auto-mute." \
-              release-artifacts/Mic-Karaoke-v1.0.0.apk \
-              release-artifacts/app-release.apk
+          #### 🚀 What's New in v1.0.1:
+          - **Google Oboe C++ Engine:** Native AAudio engine cutting software latency to 8–16ms.
+          - **Independent Mic Boost Slider:** 1.0x to 5.0x (+14 dB) independent software vocal preamp.
+          - **Limiter & Hard-Clipper:** Soft-knee compression + brickwall limiter preventing digital clipping.
+          - **Background Audio Ducking:** Automatically ducks Spotify, YouTube, and Apple Music volume by ~30% when Mic is live, and restores to 100% on stop." \
+              release-artifacts/*.apk
           fi
