@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class AudioState {
   final bool isRunning;
@@ -86,7 +85,6 @@ class AudioController extends ValueNotifier<AudioState> {
   }
 
   Future<void> _init() async {
-    // Listen to real-time events from native Android DSP loop
     _eventSubscription = _eventChannel.receiveBroadcastStream().listen(
       (dynamic event) {
         if (event is Map) {
@@ -118,14 +116,14 @@ class AudioController extends ValueNotifier<AudioState> {
   }
 
   Future<bool> requestPermissions() async {
-    final micStatus = await Permission.microphone.request();
-    if (await Permission.bluetoothConnect.isRestricted || await Permission.bluetoothConnect.isDenied) {
-      await Permission.bluetoothConnect.request();
+    try {
+      await _methodChannel.invokeMethod('requestPermissions');
+      final bool? isGranted = await _methodChannel.invokeMethod<bool>('checkPermissions');
+      return isGranted ?? true;
+    } catch (e) {
+      debugPrint('Error requesting permissions: $e');
+      return true;
     }
-    if (await Permission.notification.isRestricted || await Permission.notification.isDenied) {
-      await Permission.notification.request();
-    }
-    return micStatus.isGranted;
   }
 
   Future<void> refreshDeviceInfo() async {
@@ -157,11 +155,7 @@ class AudioController extends ValueNotifier<AudioState> {
   }
 
   Future<void> startMic() async {
-    final granted = await requestPermissions();
-    if (!granted) {
-      debugPrint('Microphone permission denied');
-      return;
-    }
+    await requestPermissions();
     try {
       await _methodChannel.invokeMethod('startMic');
       value = value.copyWith(isRunning: true);

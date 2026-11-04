@@ -1,93 +1,111 @@
-# 🎙️ Mic — Karaoke Microphone App for JBL Charge 6
+# 🎙️ Mic — Real-Time Karaoke Microphone for JBL Charge 6
 
 [![Build & Release APK](https://github.com/FL4K901/JBL-Charge-6-mic-app/actions/workflows/build_and_release.yml/badge.svg)](https://github.com/FL4K901/JBL-Charge-6-mic-app/actions/workflows/build_and_release.yml)
-[![Latest Release](https://img.shields.io/github/v/release/FL4K901/JBL-Charge-6-mic-app?color=00E5FF&label=APK%20Download)](https://github.com/FL4K901/JBL-Charge-6-mic-app/releases/latest)
-[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Samsung%20S21%20Ultra-blue)](https://github.com/FL4K901/JBL-Charge-6-mic-app)
-[![Audio Engine](https://img.shields.io/badge/Audio-Low%20Latency%20DSP-7000FF)](https://github.com/FL4K901/JBL-Charge-6-mic-app)
+[![Download APK](https://img.shields.io/badge/Download-Release%20APK-00E5FF?style=for-the-badge&logo=android)](https://github.com/FL4K901/JBL-Charge-6-mic-app/releases/latest)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Samsung%20Galaxy%20S21%20Ultra-blue?style=flat-square)](https://github.com/FL4K901/JBL-Charge-6-mic-app)
+[![Design](https://img.shields.io/badge/Design-Apple%20Cupertino%20Dark%20Glass-7000FF?style=flat-square)](https://github.com/FL4K901/JBL-Charge-6-mic-app)
 
-> אפליקציית מיקרופון קריוקי מקצועית בזמן אמת עבור מכשיר **Samsung Galaxy S21 Ultra** ורמקול **JBL Charge 6** (ובעבור כל רמקול בלוטות' / אוזניות).  
-> האפליקציה מזרימה את קולך בזמן אמת מהמיקרופון לרמקול הבלוטות' ומאפשרת **לנגן בו-זמנית שירים ברקע מ-Spotify, YouTube או Apple Music ללא השתקה או הנמכת ווליום (Zero Audio Focus Theft)!**
+A high-performance, real-time karaoke microphone application tailored for the **Samsung Galaxy S21 Ultra** and connected **JBL Charge 6** (and any Bluetooth speaker or wired headset).
 
----
-
-## 📲 הורדת ה-APK להתקנה על הטלפון (Download APK)
-
-באפשרותך להוריד את קובץ ה-APK ישירות למכשיר הסלולרי שלך:
-
-1. 📥 **[לחץ כאן להורדת ה-APK העדכני (GitHub Releases)](https://github.com/FL4K901/JBL-Charge-6-mic-app/releases/latest)**
-2. לחץ על **`Mic-Karaoke-v1.0.0.apk`** (או `app-release.apk`) להורדה.
-3. פתח את הקובץ בטלפון ולחץ **התקן (Install)** (אם זו פעם ראשונה, אשר "התקנה ממקורות לא מוכרים" בדפדפן).
-4. אפשר הרשאות מיקרופון ובלוטות' — והתחל לשיר!
-
-> 🔄 **בנייה אוטומטית בענן:** בכל פעם שמתבצע עדכון בקוד, [GitHub Actions Workflow](https://github.com/FL4K901/JBL-Charge-6-mic-app/actions) בונה אוטומטית APK חדש ומפרסם אותו בעמוד ה-Releases!
+The app captures live vocals through the smartphone's microphone and routes them directly to the Bluetooth speaker with sub-5ms internal DSP latency, while **simultaneously mixing with background music players (Spotify, YouTube, Apple Music) without ducking, muting, or requesting exclusive audio focus.**
 
 ---
 
-## ✨ תכונות עיקריות (Key Features)
+## 📲 Download & Install APK
 
-- ⚡ **שיהוי נמוך במיוחד (Ultra-Low Latency DSP):** שימוש ב-HAL Burst Buffer המקורי של סמסונג (192–240 דגימות ב-48kHz) עם עדיפות מעבד `URGENT_AUDIO` לשיהוי פנימי של פחות מ-5ms!
-- 🎵 **מיקס מלא עם מוזיקת רקע (Concurrent Media Mixing):** האפליקציה אינה תופסת Audio Focus בלעדי, כך ש-Spotify, YouTube ו-Apple Music ממשיכים לנגן כרגיל בעוצמה מלאה בזמן שאתה שר לתוך הרמקול.
-- 🎛️ **אפקטים קוליים מתקדמים (DSP Effects):**
-  - **Mic Volume (Preamp Booster):** הגברת עוצמת המיקרופון (עד 250%) עם מנגנון Soft-Saturation אנלוגי המונע עיוות דיגיטלי (Digital Clipping).
-  - **Echo (הד):** קו השהיה מעגלי (Delay Buffer) מתכוונן (50ms–600ms) עם דעיכת פידבק טבעית.
-  - **Reverb (הדהוד קונצרט):** אלגוריתם Schroeder/Freeverb (4 מסנני Comb מקבילים + 2 מסנני All-Pass) היוצר נפח קולי עשיר של אולם הופעות.
-- 🛡️ **הגנה מפני צפצופי פידבק (Anti-Howling Protection):** זיהוי אוטומטי של תהודה אקוסטית (צפצוף Howling) והנחתה מידית של 18dB- להגנה על האוזניים ועל הדרייברים של הרמקול.
-- 📴 **השתקה אוטומטית בהתנתקות (Bluetooth Disconnect Auto-Mute):** אם הרמקול JBL מתנתק או נכבה, המיקרופון מושתק מיידית כדי למנוע צפצוף מחריש אוזניים מרמקול הטלפון.
-- 📞 **השהיה אוטומטית בשיחות טלפון (Call Interruption Handling):** בעת קבלת שיחה, האפליקציה מפנה אוטומטית את המיקרופון לטובת השיחה ומחדשת את הקריוקי בסיום השיחה.
-- 📱 **עבודה מלאה ברקע (Foreground Service):** פועל גם כשהמסך כבוי או כשאתה פותח את אפליקציית המילים / נגן המוזיקה, עם התראה קבועה הכוללת כפתור Mute מהיר.
-- 🍏 **עיצוב נקי ויוקרתי בסגנון Apple:** ממשק Cupertino Dark Glassmorphism, כפתור ענק מואר בטבעת ניאון פועמת, סליידרים בצורת קפסולות בסגנון Control Center של iOS, ומד ווליום (VU Meter) מדויק בזמן אמת.
+You can download the APK file directly to your smartphone:
+
+- 📥 **[Download Latest APK from GitHub Releases](https://github.com/FL4K901/JBL-Charge-6-mic-app/releases/latest)**
+- 📦 **[Direct Download: Mic-Karaoke-v1.0.0.apk](https://github.com/FL4K901/JBL-Charge-6-mic-app/releases/download/v1.0.0/Mic-Karaoke-v1.0.0.apk)**
+- ⚙️ **[Automated GitHub Actions Build Runs](https://github.com/FL4K901/JBL-Charge-6-mic-app/actions)**
+
+### Installation Instructions for Android:
+1. Tap the download link on your phone.
+2. When the download completes, tap the file (`Mic-Karaoke-v1.0.0.apk`) to install.
+3. If prompted by Android, allow *"Install unknown apps"* for your browser.
+4. Open **Mic**, grant Microphone and Bluetooth permissions, and start singing!
 
 ---
 
-## 🏗️ מבנה הפרויקט (Project Architecture)
+## 🌟 Key Features
+
+### 1. Zero-Focus Concurrent Background Mixing
+- Plays vocal audio through Android's `AudioFlinger` mixer on `USAGE_MEDIA` with **no exclusive audio focus request**.
+- Background music from Spotify, YouTube, or Apple Music continues playing at full volume without pauses or ducking.
+- Maintains `AudioManager.MODE_NORMAL` to prevent Android from downgrading Bluetooth to the telephone mono SCO profile, preserving full stereo 44.1/48kHz A2DP fidelity on the JBL Charge 6.
+
+### 2. Studio Karaoke DSP Effects
+- **Mic Volume (Preamp Booster):** Software volume booster (up to 250%) equipped with an analog-style soft-saturation curve to prevent harsh digital clipping.
+- **Echo (Delay Line):** Circular buffer delay (50ms to 600ms) with smooth feedback decay.
+- **Reverb (Concert Space):** Schroeder/Freeverb reverberator (4 parallel comb filters + 2 series all-pass diffusers) providing rich, natural vocal ambience.
+- **Hardware AEC & Noise Suppression:** Integrates Android hardware `AcousticEchoCanceler` and `NoiseSuppressor` on the recording session.
+
+### 3. Edge-Case & Acoustic Safety Protection
+- **Anti-Howling (Feedback Loop) Protector:** Analyzes real-time crest factor (Peak / RMS). If continuous acoustic feedback resonance is detected, output is automatically ducked by -18dB immediately to save your ears and the speaker drivers.
+- **Bluetooth Disconnect Auto-Mute:** Listens to `ACTION_AUDIO_BECOMING_NOISY`. If the JBL speaker disconnects, the mic instantly auto-mutes to prevent howling through the phone's built-in speaker.
+- **Call Interruption Handling:** Pauses mic capture during incoming or active phone calls (`TelephonyCallback`), releasing hardware resources, and resumes automatically when the call finishes.
+- **Persistent Background Execution:** Operates as a Foreground Service (`android:foregroundServiceType="microphone"`) with persistent notification controls (Quick Mute & Turn Off), allowing continuous use while browsing lyrics.
+
+### 4. Apple-Style Clean Aesthetic
+- Minimalist iOS Cupertino dark glassmorphism design.
+- **Dynamic Island Status Pill:** Real-time connection badge (`"Connected: JBL Charge 6"`).
+- **Hero Mic Button:** Massive central toggle disc with an animated breathing neon halo when active.
+- **Ballistic VU Meter:** Reactive LED-style audio level visualizer with decibel markings and feedback warning banner.
+- **Capsule Sliders:** iOS Control Center-style capsule sliders for Preamp Volume, Echo, and Reverb.
+
+---
+
+## 🏗️ Repository Structure
 
 ```
 ├── lib/
-│   ├── main.dart                      # ממשק המשתמש (Apple Cupertino Style)
-│   ├── services/audio_service.dart    # ניהול תקשורת מול שכבת ה-DSP ב-Android
+│   ├── main.dart                      # Apple-style Cupertino UI and screen layout
+│   ├── services/audio_service.dart    # Reactive audio state & native channel controller
 │   └── widgets/
-│       ├── apple_card.dart            # כרטיס זכוכית מעורפלת (Frosted Glass)
-│       ├── apple_slider.dart          # סליידר קפסולה טקטילי (Control Center Style)
-│       ├── device_status_pill.dart    # תג סטטוס בסגנון Dynamic Island
-│       ├── mic_hero_button.dart       # כפתור מיקרופון ראשי ענק עם הילת ניאון
-│       └── vu_meter_visualizer.dart   # מד רמת שמע בליסטי עם סרגל דציבלים
+│       ├── apple_card.dart            # Frosted glass card container
+│       ├── apple_slider.dart          # iOS Control Center-style capsule slider
+│       ├── device_status_pill.dart    # Dynamic Island audio route status pill
+│       ├── mic_hero_button.dart       # Central hero mic toggle button with neon halo
+│       └── vu_meter_visualizer.dart   # Real-time ballistic VU meter & dB indicator
 ├── android/
 │   └── app/src/main/
-│       ├── AndroidManifest.xml        # הרשאות והגדרת Foreground Service
+│       ├── AndroidManifest.xml        # Permissions and Foreground Service declaration
 │       ├── kotlin/com/mic/app/mic/
-│       │   ├── AudioDspProcessor.kt   # מנוע עיבוד האותות (DSP, Reverb, Echo, Anti-Howl)
-│       │   ├── AudioEngine.kt         # לכידת אודיו והשמעה בשיהוי נמוך (AudioRecord/AudioTrack)
-│       │   ├── MicForegroundService.kt# שירות רקע, ניטור בלוטות' ושיחות טלפון
-│       │   └── MainActivity.kt        # גשר MethodChannel ו-EventChannel ל-Flutter
+│       │   ├── AudioDspProcessor.kt   # Real-time DSP (Gain boost, Echo, Reverb, Anti-Howl)
+│       │   ├── AudioEngine.kt         # Low-latency AudioRecord/AudioTrack engine (Zero Focus)
+│       │   ├── MicForegroundService.kt# Persistent background service & Bluetooth receiver
+│       │   └── MainActivity.kt        # Flutter MethodChannel & EventChannel bridge
 │       └── cpp/
-│           ├── OboeAudioEngine.h      # מנוע C++ Oboe / AAudio
-│           └── OboeAudioEngine.cpp    # מימוש C++ ברמת מערכת ההפעלה
+│           ├── OboeAudioEngine.h      # C++ AAudio / Google Oboe engine definition
+│           └── OboeAudioEngine.cpp    # C++ system-level audio stream implementation
 └── .github/workflows/
-    └── build_and_release.yml          # בנייה אוטומטית של קובץ APK ב-GitHub Actions
+    └── build_and_release.yml          # Automated CI/CD pipeline building release APKs
 ```
 
 ---
 
-## 🛠️ בנייה מקומית (Local Build)
-
-אם תרצה לבנות את ה-APK בעצמך במחשב:
+## ⚙️ Build from Source
 
 ```bash
-# התקנת תלויות
+# Clone the repository
+git clone https://github.com/FL4K901/JBL-Charge-6-mic-app.git
+cd JBL-Charge-6-mic-app
+
+# Get dependencies
 flutter pub get
 
-# הרצת בדיקות תקינות
+# Run test suite
 flutter test
 
-# בניית APK לשחרור
+# Build release APK
 flutter build apk --release
 ```
 
-הקובץ המותקן יימצא בנתיב:
+The output APK will be generated at:
 `build/app/outputs/flutter-apk/app-release.apk`
 
 ---
 
-## 📄 רישיון
+## 📄 License
 
 MIT License © 2026 FL4K901

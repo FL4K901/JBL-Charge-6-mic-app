@@ -1,12 +1,17 @@
 package com.mic.app.mic
 
+import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -17,6 +22,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val METHOD_CHANNEL = "com.mic.app/audio_control"
         private const val EVENT_CHANNEL = "com.mic.app/audio_events"
+        private const val PERMISSION_REQ_CODE = 1001
     }
 
     private var micService: MicForegroundService? = null
@@ -32,7 +38,7 @@ class MainActivity : FlutterActivity() {
             micService = binder.getService()
             isBound = true
 
-            micService?.audioEngine?.onStateChanged = { running ->
+            micService?.audioEngine?.onStateChanged = { _ ->
                 handler.post {
                     pushMetricsUpdate()
                 }
@@ -63,11 +69,33 @@ class MainActivity : FlutterActivity() {
             val dsp = service?.audioEngine?.dsp
 
             when (call.method) {
+                "requestPermissions" -> {
+                    val permissions = mutableListOf(
+                        Manifest.permission.RECORD_AUDIO,
+                        Manifest.permission.MODIFY_AUDIO_SETTINGS
+                    )
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQ_CODE)
+                    result.success(true)
+                }
+
+                "checkPermissions" -> {
+                    val granted = ContextCompat.checkSelfPermission(
+                        this, Manifest.permission.RECORD_AUDIO
+                    ) == PackageManager.PERMISSION_GRANTED
+                    result.success(granted)
+                }
+
                 "startMic" -> {
                     val serviceIntent = Intent(this, MicForegroundService::class.java).apply {
                         action = MicForegroundService.ACTION_START
                     }
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         startForegroundService(serviceIntent)
                     } else {
                         startService(serviceIntent)
@@ -172,7 +200,7 @@ class MainActivity : FlutterActivity() {
         metricsRunnable = object : Runnable {
             override fun run() {
                 pushMetricsUpdate()
-                handler.postDelayed(this, 30) // ~33 Hz refresh for smooth 60fps interpolation
+                handler.postDelayed(this, 30) // ~33 Hz refresh
             }
         }
         handler.post(metricsRunnable!!)
