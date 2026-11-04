@@ -1,0 +1,86 @@
+name: Build & Release Mic APK
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Verify Flutter & Environment
+        run: flutter doctor -v
+
+      - name: Get Dependencies
+        run: flutter pub get
+
+      - name: Run Unit & Smoke Tests
+        run: flutter test
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - name: Rename APK for Distribution
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Mic-Karaoke-v1.0.0.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mic-Karaoke-Release-APK
+          path: build/app/outputs/flutter-apk/Mic-Karaoke-v1.0.0.apk
+          if-no-files-found: error
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+        with:
+          tag_name: v1.0.0
+          name: "Mic v1.0.0 — Karaoke Microphone for JBL Charge 6"
+          body: |
+            ### 🎙️ Mic — Real-Time Karaoke Microphone App
+            
+            Optimized for **Samsung Galaxy S21 Ultra** and **JBL Charge 6**.
+            
+            #### 🚀 Highlights:
+            - **Real-Time Vocal Routing:** Sub-5ms internal DSP pipeline with hardware AEC & Noise Suppression.
+            - **Background Playback Mixing:** Play Spotify, YouTube, or Apple Music in the background concurrently without ducking or focus pausing.
+            - **Karaoke DSP Effects:** Adjustable Preamp Booster, Circular Delay Echo, and Concert-Hall Schroeder Reverb.
+            - **Anti-Howling Protection:** Auto-ducks gain by -18dB when acoustic feedback is detected to save ears and speakers.
+            - **Bluetooth Disconnect Safety:** Auto-mutes microphone instantly if the JBL speaker disconnects.
+            - **Apple Aesthetic Design:** Clean iOS Cupertino design with Dynamic Island status pill and tactile Control Center capsule sliders.
+            
+            #### 📲 Download & Installation:
+            Download **`Mic-Karaoke-v1.0.0.apk`** below and open it on your Android phone to install!
+          draft: false
+          prerelease: false
+          files: |
+            build/app/outputs/flutter-apk/Mic-Karaoke-v1.0.0.apk
+            build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
