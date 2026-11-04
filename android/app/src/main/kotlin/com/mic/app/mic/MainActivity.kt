@@ -59,14 +59,12 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // Bind to background service early
         val intent = Intent(this, MicForegroundService::class.java)
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
-        // 1. Method Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL).setMethodCallHandler { call, result ->
             val service = micService
-            val dsp = service?.audioEngine?.dsp
+            val engine = service?.audioEngine
 
             when (call.method) {
                 "requestPermissions" -> {
@@ -112,18 +110,24 @@ class MainActivity : FlutterActivity() {
                 }
 
                 "isMicRunning" -> {
-                    result.success(service?.audioEngine?.isRunning ?: false)
+                    result.success(engine?.isRunning ?: false)
                 }
 
-                "setMute" -> {
-                    val muted = call.argument<Boolean>("isMuted") ?: false
-                    dsp?.isMuted = muted
+                "setBoostGain" -> {
+                    val gain = call.argument<Double>("gain")?.toFloat() ?: 1.5f
+                    engine?.setBoostGain(gain)
                     result.success(true)
                 }
 
                 "setGain" -> {
-                    val gain = call.argument<Double>("gain")?.toFloat() ?: 1.0f
-                    dsp?.gain = gain.coerceIn(0.0f, 3.0f)
+                    val gain = call.argument<Double>("gain")?.toFloat() ?: 1.5f
+                    engine?.setBoostGain(gain)
+                    result.success(true)
+                }
+
+                "setMute" -> {
+                    val muted = call.argument<Boolean>("isMuted") ?: false
+                    engine?.setMute(muted)
                     result.success(true)
                 }
 
@@ -131,46 +135,41 @@ class MainActivity : FlutterActivity() {
                     val wet = call.argument<Double>("wet")?.toFloat() ?: 0.0f
                     val delayMs = call.argument<Int>("delayMs") ?: 220
                     val feedback = call.argument<Double>("feedback")?.toFloat() ?: 0.35f
-
-                    dsp?.echoWet = wet.coerceIn(0.0f, 1.0f)
-                    dsp?.echoDelayMs = delayMs.coerceIn(50, 600)
-                    dsp?.echoFeedback = feedback.coerceIn(0.0f, 0.85f)
+                    engine?.setEcho(wet, delayMs, feedback)
                     result.success(true)
                 }
 
                 "setReverb" -> {
                     val wet = call.argument<Double>("wet")?.toFloat() ?: 0.0f
                     val roomSize = call.argument<Double>("roomSize")?.toFloat() ?: 0.75f
-
-                    dsp?.reverbWet = wet.coerceIn(0.0f, 1.0f)
-                    dsp?.reverbRoomSize = roomSize.coerceIn(0.1f, 0.95f)
+                    engine?.setReverb(wet, roomSize)
                     result.success(true)
                 }
 
                 "setAntiHowling" -> {
                     val enabled = call.argument<Boolean>("enabled") ?: true
-                    dsp?.antiHowlingEnabled = enabled
+                    engine?.setAntiHowling(enabled)
                     result.success(true)
                 }
 
                 "setSafetyAutoMute" -> {
                     val enabled = call.argument<Boolean>("enabled") ?: true
-                    service?.audioEngine?.safetyAutoMuteEnabled = enabled
+                    engine?.safetyAutoMuteEnabled = enabled
                     result.success(true)
                 }
 
                 "getAudioDeviceInfo" -> {
-                    val engine = service?.audioEngine
                     val (deviceName, isBt) = engine?.getConnectedOutputDeviceInfo() ?: Pair("Phone Speaker", false)
                     val info = mapOf(
                         "deviceName" to deviceName,
                         "isBluetooth" to isBt,
                         "isRunning" to (engine?.isRunning ?: false),
-                        "isMuted" to (dsp?.isMuted ?: false),
-                        "gain" to (dsp?.gain ?: 1.0f),
-                        "echoWet" to (dsp?.echoWet ?: 0.25f),
-                        "reverbWet" to (dsp?.reverbWet ?: 0.30f),
-                        "antiHowling" to (dsp?.antiHowlingEnabled ?: true)
+                        "isUsingOboe" to (engine?.isUsingOboe ?: false),
+                        "isMuted" to (engine?.dsp?.isMuted ?: false),
+                        "boostGain" to (engine?.dsp?.boostGain ?: 1.5f),
+                        "echoWet" to (engine?.dsp?.echoWet ?: 0.25f),
+                        "reverbWet" to (engine?.dsp?.reverbWet ?: 0.30f),
+                        "antiHowling" to (engine?.dsp?.antiHowlingEnabled ?: true)
                     )
                     result.success(info)
                 }
@@ -179,7 +178,7 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        // 2. Event Channel for real-time visualizer & metrics (~33 fps / 30ms intervals)
+        // 2. Event Channel for real-time visualizer & metrics (~33 Hz)
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, EVENT_CHANNEL).setStreamHandler(
             object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
@@ -200,7 +199,7 @@ class MainActivity : FlutterActivity() {
         metricsRunnable = object : Runnable {
             override fun run() {
                 pushMetricsUpdate()
-                handler.postDelayed(this, 30) // ~33 Hz refresh
+                handler.postDelayed(this, 30)
             }
         }
         handler.post(metricsRunnable!!)
@@ -213,18 +212,20 @@ class MainActivity : FlutterActivity() {
 
     private fun pushMetricsUpdate() {
         val sink = eventSink ?: return
-        val service = micService
-        val engine = service?.audioEngine
-        val dsp = engine?.dsp
+        val engine = micService?.audioEngine
 
+        val (rms, peak, isHowling) = engine?.getMetrics() ?: Triple(0.0f, 0.0f, false)
+        val isClipping = engine?.isClipping() ?: false
         val (deviceName, isBt) = engine?.getConnectedOutputDeviceInfo() ?: Pair("Phone Speaker", false)
 
         val data = mapOf(
-            "rms" to (dsp?.currentRms?.toDouble() ?: 0.0),
-            "peak" to (dsp?.currentPeak?.toDouble() ?: 0.0),
-            "isHowling" to (dsp?.isHowlingDetected ?: false),
-            "isMuted" to (dsp?.isMuted ?: false),
+            "rms" to rms.toDouble(),
+            "peak" to peak.toDouble(),
+            "isHowling" to isHowling,
+            "isClipping" to isClipping,
+            "isMuted" to (engine?.dsp?.isMuted ?: false),
             "isRunning" to (engine?.isRunning ?: false),
+            "isUsingOboe" to (engine?.isUsingOboe ?: false),
             "deviceName" to deviceName,
             "isBluetooth" to isBt
         )

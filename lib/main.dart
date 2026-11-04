@@ -112,7 +112,7 @@ class _MicHomeScreenState extends State<MicHomeScreen> {
               contentPadding: EdgeInsets.zero,
               title: const Text('Anti-Howling Protection'),
               subtitle: const Text(
-                'Auto-ducks audio when microphone feedback is detected',
+                'Auto-ducks audio when microphone feedback resonance is detected',
                 style: TextStyle(fontSize: 12, color: Colors.white54),
               ),
               value: state.antiHowling,
@@ -161,14 +161,39 @@ class _MicHomeScreenState extends State<MicHomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Mic',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          color: Colors.white,
-                        ),
+                      Row(
+                        children: [
+                          const Text(
+                            'Mic',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: const Text(
+                              'OBOE DSP',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF00E5FF),
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       IconButton(
                         icon: const Icon(Icons.tune_rounded, color: Colors.white70),
@@ -178,26 +203,28 @@ class _MicHomeScreenState extends State<MicHomeScreen> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Connected Device Capsule Pill
+                  // Connected Device Capsule Pill with Ducking indicator
                   DeviceStatusPill(
                     deviceName: state.deviceName,
                     isBluetooth: state.isBluetooth,
                     isMuted: state.isMuted,
+                    isLive: isLive,
+                    isUsingOboe: state.isUsingOboe,
                     onToggleMute: () => _audioController.toggleMute(),
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
-                  // 2. Hero Mic Button (Massive central toggle)
+                  // 2. Hero Mic Button
                   MicHeroButton(
                     isRunning: state.isRunning,
                     isMuted: state.isMuted,
                     onTap: () => _audioController.toggleMic(),
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
-                  // 3. VU Meter Visualizer Card
+                  // 3. VU Meter Visualizer Card with Limiter feedback
                   AppleCard(
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                     child: VuMeterVisualizer(
@@ -205,27 +232,31 @@ class _MicHomeScreenState extends State<MicHomeScreen> {
                       peak: state.peak,
                       isLive: isLive,
                       isHowling: state.isHowling,
+                      isClipping: state.isClipping,
                     ),
                   ),
                   const SizedBox(height: 14),
 
-                  // 4. Karaoke DSP Effects Card (Sliders)
+                  // 4. Karaoke DSP Effects Card
                   AppleCard(
                     padding: const EdgeInsets.all(18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Mic Volume / Preamp Booster Slider (0% to 200%)
+                        // Independent Mic Boost Slider (1.0x to 5.0x / +14dB)
                         AppleSlider(
-                          title: 'Mic Volume',
-                          subtitle: 'Preamp Boost',
-                          icon: Icons.volume_up_rounded,
-                          value: state.gain,
-                          min: 0.0,
-                          max: 2.5,
+                          title: 'Mic Boost',
+                          subtitle: 'DSP Preamp & Limiter',
+                          icon: Icons.electric_bolt_rounded,
+                          value: state.boostGain,
+                          min: 1.0,
+                          max: 5.0,
                           activeColor: const Color(0xFF00E5FF),
-                          formatValue: (val) => '${(val * 100).toInt()}%',
-                          onChanged: (val) => _audioController.setGain(val),
+                          formatValue: (val) {
+                            final dB = ((val - 1.0) * 3.5).toStringAsFixed(0);
+                            return '${val.toStringAsFixed(1)}x (+$dB dB)';
+                          },
+                          onChanged: (val) => _audioController.setBoostGain(val),
                         ),
                         const SizedBox(height: 18),
 
@@ -267,7 +298,7 @@ class _MicHomeScreenState extends State<MicHomeScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // 5. Background Mixing Status Banner
+                  // 5. Background Mixing & Ducking Status Banner
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
@@ -278,16 +309,18 @@ class _MicHomeScreenState extends State<MicHomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.queue_music_rounded,
+                          Icons.volume_down_rounded,
                           size: 14,
                           color: Colors.white.withValues(alpha: 0.5),
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Mixes concurrently with Spotify, YouTube & Apple Music',
+                          isLive
+                              ? 'Spotify & YouTube ducked by ~30% for crystal clear vocals'
+                              : 'Background audio ducks automatically when Mic is turned on',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.5),
+                            color: isLive ? const Color(0xFF00E5FF) : Colors.white.withValues(alpha: 0.5),
                             fontWeight: FontWeight.w500,
                           ),
                         ),

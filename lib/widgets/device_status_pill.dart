@@ -5,6 +5,8 @@ class DeviceStatusPill extends StatelessWidget {
   final String deviceName;
   final bool isBluetooth;
   final bool isMuted;
+  final bool isLive;
+  final bool isUsingOboe;
   final VoidCallback onToggleMute;
 
   const DeviceStatusPill({
@@ -12,6 +14,8 @@ class DeviceStatusPill extends StatelessWidget {
     required this.deviceName,
     required this.isBluetooth,
     required this.isMuted,
+    this.isLive = false,
+    this.isUsingOboe = false,
     required this.onToggleMute,
   });
 
@@ -71,18 +75,42 @@ class DeviceStatusPill extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  isMuted
-                      ? 'MIC MUTED'
-                      : (isSafe ? 'CONNECTED' : 'SPEAKER ACTIVE'),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
-                    color: isMuted
-                        ? const Color(0xFFFF453A)
-                        : (isSafe ? const Color(0xFF00E5FF) : const Color(0xFFFF9F0A)),
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      isMuted
+                          ? 'MIC MUTED'
+                          : (isSafe ? 'CONNECTED' : 'SPEAKER ACTIVE'),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.0,
+                        color: isMuted
+                            ? const Color(0xFFFF453A)
+                            : (isSafe ? const Color(0xFF00E5FF) : const Color(0xFFFF9F0A)),
+                      ),
+                    ),
+                    if (isLive) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7000FF).withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'DUCKING -30%',
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFB388FF),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   deviceName,

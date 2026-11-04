@@ -6,23 +6,22 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
- * High-performance, zero-allocation Digital Signal Processing (DSP) engine
- * specifically engineered for real-time vocal karaoke processing on Android.
+ * Real-time Digital Signal Processing (DSP) engine.
  *
  * Implements:
- * 1. Preamp software gain booster with soft-saturating analog-style limiter
- * 2. Circular buffer Echo / Delay with feedback decay
- * 3. Schroeder / Freeverb-inspired multi-comb & all-pass reverberation
- * 4. Anti-Howling / Feedback Loop auto-detector & fast protective ducking
- * 5. High-speed VU meter & RMS peak envelope follower
+ * 1. Independent Mic Boost DSP Multiplier (1.0x to 5.0x / +14dB)
+ * 2. Hard-clipper / brickwall limiter strictly preventing 16-bit integer distortion
+ * 3. Circular buffer Echo / Delay with feedback decay
+ * 4. Schroeder / Freeverb-inspired multi-comb & all-pass reverberation
+ * 5. Anti-Howling / Feedback Loop auto-detector & fast protective ducking
  */
 class AudioDspProcessor(
     private val sampleRate: Int = 48000
 ) {
     // ----------------------------------------------------
-    // User Controllable DSP Parameters (Thread-safe atomics/volatiles)
+    // User Controllable DSP Parameters
     // ----------------------------------------------------
-    @Volatile var gain: Float = 1.0f             // 0.0 to 3.0 (Preamp boost)
+    @Volatile var boostGain: Float = 1.5f        // 1.0x to 5.0x independent Mic Boost
     @Volatile var isMuted: Boolean = false       // Mute switch
     @Volatile var echoWet: Float = 0.25f         // 0.0 to 1.0
     @Volatile var echoDelayMs: Int = 220         // 50ms to 600ms
@@ -31,23 +30,18 @@ class AudioDspProcessor(
     @Volatile var reverbRoomSize: Float = 0.75f   // 0.2 to 0.95
     @Volatile var antiHowlingEnabled: Boolean = true
 
-    // Real-time metrics for UI visualizer
+    // Real-time metrics
     @Volatile var currentRms: Float = 0.0f
     @Volatile var currentPeak: Float = 0.0f
     @Volatile var isHowlingDetected: Boolean = false
+    @Volatile var isClippingDetected: Boolean = false
 
-    // ----------------------------------------------------
     // Delay / Echo Buffers
-    // ----------------------------------------------------
-    // Maximum 1.0 second delay line at sampleRate
     private val maxDelaySamples = sampleRate
     private val echoBuffer = FloatArray(maxDelaySamples)
     private var echoWriteIndex = 0
 
-    // ----------------------------------------------------
-    // Schroeder / Freeverb Reverb Engine
-    // 4 Parallel Comb Filters + 2 Series All-Pass Diffusers
-    // ----------------------------------------------------
+    // Schroeder Reverb Filters
     private class CombFilter(size: Int) {
         val buffer = FloatArray(size)
         var bufferIndex = 0
@@ -75,7 +69,6 @@ class AudioDspProcessor(
         }
     }
 
-    // Tuning tuned for 48kHz sampling rate (primes to prevent modal resonance)
     private val combFilters = arrayOf(
         CombFilter(1116 * sampleRate / 44100),
         CombFilter(1188 * sampleRate / 44100),
@@ -88,16 +81,12 @@ class AudioDspProcessor(
         AllPassFilter(441 * sampleRate / 44100)
     )
 
-    // ----------------------------------------------------
-    // Anti-Howling & Feedback Loop Protection State
-    // ----------------------------------------------------
     private var highEnergyFrameCount = 0
     private var duckingGain = 1.0f
-    private val duckingRecoverySpeed = 0.0005f // Smooth recovery per sample
+    private val duckingRecoverySpeed = 0.0005f
 
     /**
-     * Process an interleaved or mono 16-bit PCM buffer in-place.
-     * Jitter-free, zero heap allocation during execution.
+     * Process 16-bit PCM buffer in-place with zero heap allocations.
      */
     fun process(buffer: ShortArray, readSize: Int) {
         if (readSize <= 0) return
@@ -115,17 +104,17 @@ class AudioDspProcessor(
         var sumSquares = 0.0
         var maxAbsSample = 0f
 
-        // Convert delay time in ms to sample offset
         val delaySamples = min(maxDelaySamples - 1, max(1, (echoDelayMs * sampleRate) / 1000))
         val currentEchoWet = echoWet
         val currentEchoFeedback = echoFeedback
         val currentReverbWet = reverbWet
-        val roomFeedback = reverbRoomSize * 0.28f + 0.7f // scaled feedback
+        val roomFeedback = reverbRoomSize * 0.28f + 0.7f
         val dampFactor = 0.35f
+        val gainMultiplier = boostGain // 1.0x to 5.0x
 
         for (i in 0 until readSize) {
             val inputSample16 = buffer[i]
-            val rawSample = inputSample16 / 32768.0f // Normalized -1.0 to 1.0
+            val rawSample = inputSample16 / 32768.0f // -1.0 to 1.0
 
             val absSample = abs(rawSample)
             if (absSample > maxAbsSample) {
@@ -133,8 +122,8 @@ class AudioDspProcessor(
             }
             sumSquares += (rawSample * rawSample)
 
-            // 1. Preamp software gain boost
-            var sample = rawSample * gain
+            // 1. Independent Mic Boost DSP Gain Multiplier
+            var sample = rawSample * gainMultiplier
 
             // 2. Anti-Howling protective ducking
             if (duckingGain < 1.0f) {
@@ -142,7 +131,7 @@ class AudioDspProcessor(
                 duckingGain = min(1.0f, duckingGain + duckingRecoverySpeed)
             }
 
-            // 3. Reverb Processing (Schroeder architecture)
+            // 3. Reverb Processing
             var reverbOutput = 0.0f
             if (currentReverbWet > 0.01f) {
                 var combSum = 0.0f
@@ -156,13 +145,12 @@ class AudioDspProcessor(
                 reverbOutput = diffused
             }
 
-            // 4. Echo / Delay Processing (Circular buffer with feedback)
+            // 4. Echo / Delay Processing
             var echoOutput = 0.0f
             if (currentEchoWet > 0.01f) {
                 val echoReadIndex = (echoWriteIndex - delaySamples + maxDelaySamples) % maxDelaySamples
                 val delayedSample = echoBuffer[echoReadIndex]
                 
-                // Write input + feedback into delay line
                 echoBuffer[echoWriteIndex] = sample + (delayedSample * currentEchoFeedback)
                 echoOutput = delayedSample
 
@@ -173,28 +161,37 @@ class AudioDspProcessor(
             val dryMix = 1.0f - max(currentEchoWet, currentReverbWet) * 0.4f
             var mixedSample = (sample * dryMix) + (echoOutput * currentEchoWet) + (reverbOutput * currentReverbWet)
 
-            // 6. Analog-Style Soft Saturation & Limiter (prevents digital wrapping / square wave clipping)
+            // 6. Analog Soft-Saturating Limiter
             mixedSample = softSaturate(mixedSample)
 
-            // Convert back to 16-bit PCM integer
-            val output16 = (mixedSample * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
-            buffer[i] = output16
+            // 7. Brickwall Hard-Clipper strictly clamping to [-32768, 32767]
+            val outputInt = (mixedSample * 32767.0f).toInt()
+            val clamped = when {
+                outputInt > 32767 -> {
+                    isClippingDetected = true
+                    32767
+                }
+                outputInt < -32768 -> {
+                    isClippingDetected = true
+                    -32768
+                }
+                else -> outputInt
+            }.toShort()
+
+            buffer[i] = clamped
         }
 
-        // ----------------------------------------------------
-        // Metrics Calculation & Howling Detection
-        // ----------------------------------------------------
+        // Metrics & Howling detection
         val rms = sqrt(sumSquares / readSize).toFloat()
         currentRms = rms
         currentPeak = maxAbsSample
 
         if (antiHowlingEnabled) {
-            // Sustained extreme volume near 0dBFS with low dynamic range indicates feedback resonance
             if (maxAbsSample > 0.92f && rms > 0.65f) {
                 highEnergyFrameCount++
-                if (highEnergyFrameCount > 4) { // Sustained for ~4 buffer bursts (~20-40ms)
+                if (highEnergyFrameCount > 4) {
                     isHowlingDetected = true
-                    duckingGain = 0.12f // Brickwall ducking: clamp to -18dB immediately
+                    duckingGain = 0.12f // Clamp -18dB
                 }
             } else {
                 if (highEnergyFrameCount > 0) highEnergyFrameCount--
@@ -205,11 +202,6 @@ class AudioDspProcessor(
         }
     }
 
-    /**
-     * Smooth analog-style soft clipper.
-     * Approximates a warm vacuum-tube compression curve.
-     * Linear between -0.6 and +0.6, transitioning smoothly to hard-limit at +-1.0.
-     */
     private fun softSaturate(x: Float): Float {
         return when {
             x > 1.25f -> 1.0f
@@ -228,5 +220,6 @@ class AudioDspProcessor(
         currentRms = 0f
         currentPeak = 0f
         isHowlingDetected = false
+        isClippingDetected = false
     }
 }

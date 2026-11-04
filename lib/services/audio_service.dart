@@ -4,8 +4,9 @@ import 'package:flutter/services.dart';
 
 class AudioState {
   final bool isRunning;
+  final bool isUsingOboe;
   final bool isMuted;
-  final double gain;
+  final double boostGain; // 1.0x to 5.0x (+0dB to +14dB)
   final double echoWet;
   final int echoDelayMs;
   final double echoFeedback;
@@ -18,11 +19,13 @@ class AudioState {
   final double rms;
   final double peak;
   final bool isHowling;
+  final bool isClipping;
 
   const AudioState({
     this.isRunning = false,
+    this.isUsingOboe = false,
     this.isMuted = false,
-    this.gain = 1.0,
+    this.boostGain = 1.5,
     this.echoWet = 0.25,
     this.echoDelayMs = 220,
     this.echoFeedback = 0.35,
@@ -35,12 +38,14 @@ class AudioState {
     this.rms = 0.0,
     this.peak = 0.0,
     this.isHowling = false,
+    this.isClipping = false,
   });
 
   AudioState copyWith({
     bool? isRunning,
+    bool? isUsingOboe,
     bool? isMuted,
-    double? gain,
+    double? boostGain,
     double? echoWet,
     int? echoDelayMs,
     double? echoFeedback,
@@ -53,11 +58,13 @@ class AudioState {
     double? rms,
     double? peak,
     bool? isHowling,
+    bool? isClipping,
   }) {
     return AudioState(
       isRunning: isRunning ?? this.isRunning,
+      isUsingOboe: isUsingOboe ?? this.isUsingOboe,
       isMuted: isMuted ?? this.isMuted,
-      gain: gain ?? this.gain,
+      boostGain: boostGain ?? this.boostGain,
       echoWet: echoWet ?? this.echoWet,
       echoDelayMs: echoDelayMs ?? this.echoDelayMs,
       echoFeedback: echoFeedback ?? this.echoFeedback,
@@ -70,6 +77,7 @@ class AudioState {
       rms: rms ?? this.rms,
       peak: peak ?? this.peak,
       isHowling: isHowling ?? this.isHowling,
+      isClipping: isClipping ?? this.isClipping,
     );
   }
 }
@@ -91,8 +99,10 @@ class AudioController extends ValueNotifier<AudioState> {
           final rms = (event['rms'] as num?)?.toDouble() ?? 0.0;
           final peak = (event['peak'] as num?)?.toDouble() ?? 0.0;
           final isHowling = (event['isHowling'] as bool?) ?? false;
+          final isClipping = (event['isClipping'] as bool?) ?? false;
           final isMuted = (event['isMuted'] as bool?) ?? false;
           final isRunning = (event['isRunning'] as bool?) ?? false;
+          final isUsingOboe = (event['isUsingOboe'] as bool?) ?? false;
           final deviceName = (event['deviceName'] as String?) ?? 'Phone Speaker';
           final isBluetooth = (event['isBluetooth'] as bool?) ?? false;
 
@@ -100,8 +110,10 @@ class AudioController extends ValueNotifier<AudioState> {
             rms: rms,
             peak: peak,
             isHowling: isHowling,
+            isClipping: isClipping,
             isMuted: isMuted,
             isRunning: isRunning,
+            isUsingOboe: isUsingOboe,
             deviceName: deviceName,
             isBluetooth: isBluetooth,
           );
@@ -134,8 +146,9 @@ class AudioController extends ValueNotifier<AudioState> {
           deviceName: (info['deviceName'] as String?) ?? value.deviceName,
           isBluetooth: (info['isBluetooth'] as bool?) ?? value.isBluetooth,
           isRunning: (info['isRunning'] as bool?) ?? value.isRunning,
+          isUsingOboe: (info['isUsingOboe'] as bool?) ?? value.isUsingOboe,
           isMuted: (info['isMuted'] as bool?) ?? value.isMuted,
-          gain: (info['gain'] as num?)?.toDouble() ?? value.gain,
+          boostGain: (info['boostGain'] as num?)?.toDouble() ?? value.boostGain,
           echoWet: (info['echoWet'] as num?)?.toDouble() ?? value.echoWet,
           reverbWet: (info['reverbWet'] as num?)?.toDouble() ?? value.reverbWet,
           antiHowling: (info['antiHowling'] as bool?) ?? value.antiHowling,
@@ -160,7 +173,7 @@ class AudioController extends ValueNotifier<AudioState> {
       await _methodChannel.invokeMethod('startMic');
       value = value.copyWith(isRunning: true);
       // Synchronize initial DSP settings
-      await setGain(value.gain);
+      await setBoostGain(value.boostGain);
       await setEcho(value.echoWet, value.echoDelayMs, value.echoFeedback);
       await setReverb(value.reverbWet, value.reverbRoomSize);
       await setAntiHowling(value.antiHowling);
@@ -173,7 +186,7 @@ class AudioController extends ValueNotifier<AudioState> {
   Future<void> stopMic() async {
     try {
       await _methodChannel.invokeMethod('stopMic');
-      value = value.copyWith(isRunning: false, rms: 0.0, peak: 0.0, isHowling: false);
+      value = value.copyWith(isRunning: false, rms: 0.0, peak: 0.0, isHowling: false, isClipping: false);
     } catch (e) {
       debugPrint('Error stopping mic: $e');
     }
@@ -189,13 +202,14 @@ class AudioController extends ValueNotifier<AudioState> {
     }
   }
 
-  Future<void> setGain(double gain) async {
-    final clamped = gain.clamp(0.0, 3.0);
-    value = value.copyWith(gain: clamped);
+  /// Independent Mic Boost multiplier (1.0x to 5.0x)
+  Future<void> setBoostGain(double gain) async {
+    final clamped = gain.clamp(1.0, 5.0);
+    value = value.copyWith(boostGain: clamped);
     try {
-      await _methodChannel.invokeMethod('setGain', {'gain': clamped});
+      await _methodChannel.invokeMethod('setBoostGain', {'gain': clamped});
     } catch (e) {
-      debugPrint('Error setting gain: $e');
+      debugPrint('Error setting boost gain: $e');
     }
   }
 

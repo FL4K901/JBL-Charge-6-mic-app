@@ -6,6 +6,7 @@ class VuMeterVisualizer extends StatefulWidget {
   final double peak;
   final bool isLive;
   final bool isHowling;
+  final bool isClipping;
 
   const VuMeterVisualizer({
     super.key,
@@ -13,6 +14,7 @@ class VuMeterVisualizer extends StatefulWidget {
     required this.peak,
     required this.isLive,
     required this.isHowling,
+    this.isClipping = false,
   });
 
   @override
@@ -23,6 +25,7 @@ class _VuMeterVisualizerState extends State<VuMeterVisualizer> with SingleTicker
   double _smoothLevel = 0.0;
   double _peakHold = 0.0;
   int _peakHoldTimer = 0;
+  int _clipDisplayTimer = 0;
 
   @override
   void didUpdateWidget(covariant VuMeterVisualizer oldWidget) {
@@ -31,21 +34,26 @@ class _VuMeterVisualizerState extends State<VuMeterVisualizer> with SingleTicker
     if (!widget.isLive) {
       _smoothLevel = 0.0;
       _peakHold = 0.0;
+      _clipDisplayTimer = 0;
       return;
     }
 
-    // Ballistics calculation: Instant attack, smooth exponential decay
-    final targetLevel = (widget.peak * 1.25).clamp(0.0, 1.0);
-    if (targetLevel > _smoothLevel) {
-      _smoothLevel = targetLevel; // Fast attack
-    } else {
-      _smoothLevel = (_smoothLevel * 0.82) + (targetLevel * 0.18); // Smooth decay
+    if (widget.isClipping) {
+      _clipDisplayTimer = 15;
+    } else if (_clipDisplayTimer > 0) {
+      _clipDisplayTimer--;
     }
 
-    // Peak hold marker
+    final targetLevel = (widget.peak * 1.25).clamp(0.0, 1.0);
+    if (targetLevel > _smoothLevel) {
+      _smoothLevel = targetLevel;
+    } else {
+      _smoothLevel = (_smoothLevel * 0.82) + (targetLevel * 0.18);
+    }
+
     if (_smoothLevel >= _peakHold) {
       _peakHold = _smoothLevel;
-      _peakHoldTimer = 25; // Hold for ~25 frames (~800ms)
+      _peakHoldTimer = 25;
     } else {
       if (_peakHoldTimer > 0) {
         _peakHoldTimer--;
@@ -109,6 +117,31 @@ class _VuMeterVisualizerState extends State<VuMeterVisualizer> with SingleTicker
                   ],
                 ),
               )
+            else if (_clipDisplayTimer > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF9F0A).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFF9F0A), width: 0.8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bolt_rounded, size: 12, color: Color(0xFFFF9F0A)),
+                    SizedBox(width: 4),
+                    Text(
+                      'LIMITER ACTIVE',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFFF9F0A),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+              )
             else
               Text(
                 widget.isLive ? '${(_smoothLevel * 100).toInt()}%' : '0%',
@@ -145,7 +178,7 @@ class _VuMeterVisualizerState extends State<VuMeterVisualizer> with SingleTicker
             _buildDbLabel('-12dB'),
             _buildDbLabel('-6dB'),
             _buildDbLabel('0dB'),
-            _buildDbLabel('CLIP', isWarning: true),
+            _buildDbLabel('LIMIT', isWarning: true),
           ],
         ),
       ],
@@ -193,16 +226,12 @@ class _VuSegmentPainter extends CustomPainter {
         const Radius.circular(3),
       );
 
-      // Determine segment color based on position in scale
       Color activeColor;
       if (i < segmentCount * 0.65) {
-        // Safe region: Apple Mint Green
         activeColor = const Color(0xFF30D158);
       } else if (i < segmentCount * 0.85) {
-        // Warning headroom: Apple Warm Yellow
         activeColor = const Color(0xFFFFD60A);
       } else {
-        // Peak limit: Apple Coral Red
         activeColor = const Color(0xFFFF453A);
       }
 
@@ -216,7 +245,6 @@ class _VuSegmentPainter extends CustomPainter {
         paint.color = Colors.white;
         canvas.drawRRect(rrect, paint);
       } else {
-        // Inactive background slot
         paint.color = const Color(0xFF1E222D);
         canvas.drawRRect(rrect, paint);
       }

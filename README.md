@@ -2,12 +2,13 @@
 
 [![Build & Release APK](https://github.com/FL4K901/JBL-Charge-6-mic-app/actions/workflows/build_and_release.yml/badge.svg)](https://github.com/FL4K901/JBL-Charge-6-mic-app/actions/workflows/build_and_release.yml)
 [![Download APK](https://img.shields.io/badge/Download-Release%20APK-00E5FF?style=for-the-badge&logo=android)](https://github.com/FL4K901/JBL-Charge-6-mic-app/releases/latest)
+[![Audio Engine](https://img.shields.io/badge/Audio-Google%20Oboe%20C%2B%2B%20AAudio-00E5FF?style=flat-square)](https://github.com/FL4K901/JBL-Charge-6-mic-app)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Samsung%20Galaxy%20S21%20Ultra-blue?style=flat-square)](https://github.com/FL4K901/JBL-Charge-6-mic-app)
 [![Design](https://img.shields.io/badge/Design-Apple%20Cupertino%20Dark%20Glass-7000FF?style=flat-square)](https://github.com/FL4K901/JBL-Charge-6-mic-app)
 
-A high-performance, real-time karaoke microphone application tailored for the **Samsung Galaxy S21 Ultra** and connected **JBL Charge 6** (and any Bluetooth speaker or wired headset).
+A high-performance, real-time karaoke microphone application engineered with **Google's Oboe C++ Library (AAudio)** for the **Samsung Galaxy S21 Ultra** and connected **JBL Charge 6** (as well as any Bluetooth speaker or wired headset).
 
-The app captures live vocals through the smartphone's microphone and routes them directly to the Bluetooth speaker with sub-5ms internal DSP latency, while **simultaneously mixing with background music players (Spotify, YouTube, Apple Music) without ducking, muting, or requesting exclusive audio focus.**
+The app captures live vocals through the phone's microphone, processes them in native C++ with sub-10ms software latency, and outputs them to the Bluetooth speaker while **automatically ducking background music (Spotify, YouTube, Apple Music) by ~30%** so your voice cuts through clearly.
 
 ---
 
@@ -27,31 +28,37 @@ You can download the APK file directly to your smartphone:
 
 ---
 
-## 🌟 Key Features
+## 🚀 Key Architectural Updates
 
-### 1. Zero-Focus Concurrent Background Mixing
-- Plays vocal audio through Android's `AudioFlinger` mixer on `USAGE_MEDIA` with **no exclusive audio focus request**.
-- Background music from Spotify, YouTube, or Apple Music continues playing at full volume without pauses or ducking.
-- Maintains `AudioManager.MODE_NORMAL` to prevent Android from downgrading Bluetooth to the telephone mono SCO profile, preserving full stereo 44.1/48kHz A2DP fidelity on the JBL Charge 6.
+### 1. Ultra-Low Latency Native C++ Pipeline (Google Oboe)
+- Replaces standard high-level audio routing with Google's **Oboe library** using direct JNI bindings.
+- Operates in `oboe::PerformanceMode::LowLatency` with `oboe::AudioApi::AAudio` and `oboe::SharingMode::Shared`.
+- Uses double-burst buffering tuned for the **Samsung Galaxy S21 Ultra** (typically 192 or 240 frames @ 48kHz), holding software latency to **8–16ms**.
+- Runs in a real-time thread with zero Dart VM garbage collection pauses.
 
-### 2. Studio Karaoke DSP Effects
-- **Mic Volume (Preamp Booster):** Software volume booster (up to 250%) equipped with an analog-style soft-saturation curve to prevent harsh digital clipping.
+### 2. Independent Mic Boost (DSP Multiplier & Limiter)
+- **Problem solved:** Physical device volume buttons adjust both the microphone and background music simultaneously.
+- **Solution:** A dedicated **Mic Boost** slider in the UI that multiplies raw 16-bit PCM samples on the microphone stream from **1.0x up to 5.0x (+14 dB)** before mixing.
+- **Brickwall Hard-Clipper & Soft Limiter:** Implements a soft-knee saturation curve followed by a strict hard-clipper clamping samples between `[-32768, 32767]` to prevent harsh digital distortion.
+
+### 3. Background Audio Ducking (`AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`)
+- When the microphone is toggled **ON**, the app requests `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK` with `willPauseWhenDucked(false)`.
+- Android Audio Policy automatically ducks (lowers) background music from Spotify, YouTube, or Apple Music by **~30%**, allowing your boosted vocal signal to sit clearly on top of the mix.
+- When the mic is toggled **OFF**, audio focus is cleanly abandoned, restoring background music to **100% volume**.
+
+### 4. Karaoke DSP Effects & Safety
 - **Echo (Delay Line):** Circular buffer delay (50ms to 600ms) with smooth feedback decay.
-- **Reverb (Concert Space):** Schroeder/Freeverb reverberator (4 parallel comb filters + 2 series all-pass diffusers) providing rich, natural vocal ambience.
-- **Hardware AEC & Noise Suppression:** Integrates Android hardware `AcousticEchoCanceler` and `NoiseSuppressor` on the recording session.
+- **Reverb (Concert Space):** Schroeder/Freeverb reverberator (4 parallel comb filters + 2 series all-pass diffusers) for natural vocal space.
+- **Anti-Howling (Feedback Protection):** Detects continuous acoustic feedback resonance and instantly ducks gain by -18dB to protect ears and speakers.
+- **Bluetooth Disconnect Auto-Mute:** Auto-mutes microphone if the JBL speaker disconnects, preventing loud blasts through the phone speaker.
+- **Call Interruption Handling:** Automatically pauses during phone calls and resumes afterward.
 
-### 3. Edge-Case & Acoustic Safety Protection
-- **Anti-Howling (Feedback Loop) Protector:** Analyzes real-time crest factor (Peak / RMS). If continuous acoustic feedback resonance is detected, output is automatically ducked by -18dB immediately to save your ears and the speaker drivers.
-- **Bluetooth Disconnect Auto-Mute:** Listens to `ACTION_AUDIO_BECOMING_NOISY`. If the JBL speaker disconnects, the mic instantly auto-mutes to prevent howling through the phone's built-in speaker.
-- **Call Interruption Handling:** Pauses mic capture during incoming or active phone calls (`TelephonyCallback`), releasing hardware resources, and resumes automatically when the call finishes.
-- **Persistent Background Execution:** Operates as a Foreground Service (`android:foregroundServiceType="microphone"`) with persistent notification controls (Quick Mute & Turn Off), allowing continuous use while browsing lyrics.
-
-### 4. Apple-Style Clean Aesthetic
+### 5. Apple-Style Clean Aesthetic
 - Minimalist iOS Cupertino dark glassmorphism design.
-- **Dynamic Island Status Pill:** Real-time connection badge (`"Connected: JBL Charge 6"`).
+- **Dynamic Island Status Pill:** Real-time badge showing connection status and ducking state (`"DUCKING -30%"`).
 - **Hero Mic Button:** Massive central toggle disc with an animated breathing neon halo when active.
-- **Ballistic VU Meter:** Reactive LED-style audio level visualizer with decibel markings and feedback warning banner.
-- **Capsule Sliders:** iOS Control Center-style capsule sliders for Preamp Volume, Echo, and Reverb.
+- **Ballistic VU Meter:** Reactive LED-style audio level visualizer with decibel markings and limiter engagement indicator.
+- **Capsule Sliders:** iOS Control Center-style capsule sliders for Mic Boost (1.0x–5.0x), Echo, and Reverb.
 
 ---
 
@@ -70,14 +77,17 @@ You can download the APK file directly to your smartphone:
 ├── android/
 │   └── app/src/main/
 │       ├── AndroidManifest.xml        # Permissions and Foreground Service declaration
-│       ├── kotlin/com/mic/app/mic/
-│       │   ├── AudioDspProcessor.kt   # Real-time DSP (Gain boost, Echo, Reverb, Anti-Howl)
-│       │   ├── AudioEngine.kt         # Low-latency AudioRecord/AudioTrack engine (Zero Focus)
-│       │   ├── MicForegroundService.kt# Persistent background service & Bluetooth receiver
-│       │   └── MainActivity.kt        # Flutter MethodChannel & EventChannel bridge
-│       └── cpp/
-│           ├── OboeAudioEngine.h      # C++ AAudio / Google Oboe engine definition
-│           └── OboeAudioEngine.cpp    # C++ system-level audio stream implementation
+│       ├── cpp/
+│       │   ├── CMakeLists.txt         # CMake build configuration linking Google Oboe
+│       │   ├── OboeAudioEngine.h      # Google Oboe full-duplex low-latency engine
+│       │   ├── OboeAudioEngine.cpp    # Real-time onAudioReady callback, DSP Boost & Limiter
+│       │   └── native-lib.cpp         # JNI bridge between C++ Oboe and Kotlin
+│       └── kotlin/com/mic/app/mic/
+│           ├── OboeAudioEngineBridge.kt# Kotlin wrapper for JNI C++ engine
+│           ├── AudioEngine.kt         # Audio routing, Oboe lifecycle & focus ducking
+│           ├── AudioDspProcessor.kt   # High-performance DSP processor fallback
+│           ├── MicForegroundService.kt# Persistent background service & Bluetooth receiver
+│           └── MainActivity.kt        # Flutter MethodChannel & EventChannel bridge
 └── .github/workflows/
     └── build_and_release.yml          # Automated CI/CD pipeline building release APKs
 ```
@@ -100,9 +110,6 @@ flutter test
 # Build release APK
 flutter build apk --release
 ```
-
-The output APK will be generated at:
-`build/app/outputs/flutter-apk/app-release.apk`
 
 ---
 

@@ -1,50 +1,66 @@
 #pragma once
 
+#include <oboe/Oboe.h>
 #include <vector>
 #include <atomic>
 #include <cmath>
 #include <memory>
 
 /**
- * C++ Real-Time Audio Engine utilizing Android AAudio / Google Oboe.
+ * Ultra-low latency Real-Time Audio Engine utilizing Google Oboe and Android AAudio.
  *
- * Configured for:
- * - Direction: Input (Recording) and Output (Media playback)
- * - SharingMode: Shared (Allows external media players like Spotify to play concurrently)
- * - PerformanceMode: LowLatency
- * - AudioFormat: I16 / Float
- * - Usage: Media (No audio focus request -> mixes naturally in AudioFlinger)
+ * Configured specifically for Samsung Galaxy S21 Ultra and Bluetooth output:
+ * - Output Stream: Media usage with LowLatency AAudio, Native 48kHz, optimal burst size
+ * - Input Stream: VoiceCommunication preset for hardware AEC & NS, LowLatency AAudio
+ * - Full Duplex: Non-blocking pull callback on output stream (target latency: 8-16ms)
+ * - DSP: Real-time Mic Boost Gain (1.0x - 5.0x), Echo delay, Schroeder Reverb, Anti-Howl
+ * - Protective Limiter: Soft-knee saturation + brickwall hard-clipper strictly clamping to [-32768, 32767]
  */
-class OboeAudioEngine {
+class OboeAudioEngine : public oboe::AudioStreamCallback {
 public:
     OboeAudioEngine();
-    ~OboeAudioEngine();
+    virtual ~OboeAudioEngine();
 
     bool start();
     void stop();
+    bool isRunning() const { return mRunning.load(); }
 
-    void setGain(float g) { mGain.store(g); }
+    // DSP Parameter Controls
+    void setBoostGain(float gain) { mBoostGain.store(std::clamp(gain, 1.0f, 5.0f)); }
     void setEcho(float wet, int delayMs, float feedback);
     void setReverb(float wet, float roomSize);
     void setMute(bool mute) { mMuted.store(mute); }
     void setAntiHowling(bool enabled) { mAntiHowling.store(enabled); }
 
+    // Real-time Metrics
     float getRms() const { return mRms.load(); }
     float getPeak() const { return mPeak.load(); }
     bool isHowling() const { return mHowlingDetected.load(); }
+    bool isClipping() { return mClipDetected.exchange(false); }
 
-    // Direct callback processing routine (invoked by AAudio / Oboe audio thread)
-    void processAudio(int16_t* inBuffer, int16_t* outBuffer, int32_t numFrames);
+    // Oboe AudioStreamCallback interface
+    oboe::DataCallbackResult onAudioReady(
+        oboe::AudioStream *audioStream,
+        void *audioData,
+        int32_t numFrames
+    ) override;
+
+    // Error callback from AudioStreamCallback base
+    void onErrorAfterClose(oboe::AudioStream *audioStream, oboe::Result error) override;
 
 private:
     static constexpr int SAMPLE_RATE = 48000;
-    static constexpr int MAX_DELAY_SAMPLES = 48000;
+    static constexpr int MAX_DELAY_SAMPLES = 48000; // 1 second buffer @ 48kHz
+    static constexpr int CHANNEL_COUNT = 1;        // Mono processing
+
+    std::shared_ptr<oboe::AudioStream> mInputStream;
+    std::shared_ptr<oboe::AudioStream> mOutputStream;
 
     std::atomic<bool> mRunning{false};
     std::atomic<bool> mMuted{false};
-    std::atomic<float> mGain{1.0f};
+    std::atomic<float> mBoostGain{1.5f}; // 1.0x to 5.0x Mic Boost
     std::atomic<float> mEchoWet{0.25f};
-    std::atomic<int> mEchoDelaySamples{12000};
+    std::atomic<int> mEchoDelaySamples{10560}; // ~220ms
     std::atomic<float> mEchoFeedback{0.35f};
     std::atomic<float> mReverbWet{0.30f};
     std::atomic<float> mReverbRoomSize{0.75f};
@@ -53,12 +69,16 @@ private:
     std::atomic<float> mRms{0.0f};
     std::atomic<float> mPeak{0.0f};
     std::atomic<bool> mHowlingDetected{false};
+    std::atomic<bool> mClipDetected{false};
 
-    // Circular delay buffer for echo
+    // Pre-allocated intermediate buffer for input stream reads
+    std::vector<int16_t> mInputBuffer;
+
+    // Delay line buffer
     std::vector<float> mEchoBuffer;
     int mEchoWriteIndex{0};
 
-    // Comb & Allpass structures for reverb
+    // Schroeder Reverberator Components
     struct CombFilter {
         std::vector<float> buf;
         int idx = 0;
@@ -68,7 +88,7 @@ private:
             float out = buf[idx];
             store = (out * (1.0f - damp)) + (store * damp);
             buf[idx] = in + (store * fb);
-            if (++idx >= (int)buf.size()) idx = 0;
+            if (++idx >= static_cast<int>(buf.size())) idx = 0;
             return out;
         }
     };
@@ -81,7 +101,7 @@ private:
             float bufOut = buf[idx];
             float out = -in + bufOut;
             buf[idx] = in + (bufOut * fb);
-            if (++idx >= (int)buf.size()) idx = 0;
+            if (++idx >= static_cast<int>(buf.size())) idx = 0;
             return out;
         }
     };
@@ -92,6 +112,7 @@ private:
     float mDuckingGain{1.0f};
     int mHighEnergyCount{0};
 
+    // DSP limiting helpers
     inline float softSaturate(float x) {
         if (x > 1.25f) return 1.0f;
         if (x < -1.25f) return -1.0f;
