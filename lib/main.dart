@@ -1,4 +1,6 @@
-import 'package:flutter/cupertino.dart';
+// Copyright (c) 2026 FL4K901. All rights reserved.
+// Licensed under the MIT License. See LICENSE in the project root.
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'services/audio_service.dart';
@@ -116,7 +118,7 @@ class _MicHomeScreenState extends State<MicHomeScreen> {
                 style: TextStyle(fontSize: 12, color: Colors.white54),
               ),
               value: state.antiHowling,
-              activeColor: const Color(0xFF00E5FF),
+              activeTrackColor: const Color(0xFF00E5FF),
               onChanged: (val) {
                 _audioController.setAntiHowling(val);
                 Navigator.pop(ctx);
@@ -130,7 +132,7 @@ class _MicHomeScreenState extends State<MicHomeScreen> {
                 style: TextStyle(fontSize: 12, color: Colors.white54),
               ),
               value: state.safetyAutoMute,
-              activeColor: const Color(0xFF00E5FF),
+              activeTrackColor: const Color(0xFF00E5FF),
               onChanged: (val) {
                 _audioController.setSafetyAutoMute(val);
                 Navigator.pop(ctx);

@@ -5,6 +5,8 @@
 [![Audio Engine](https://img.shields.io/badge/Audio-Google%20Oboe%20C%2B%2B%20AAudio-00E5FF?style=flat-square)](https://github.com/FL4K901/JBL-Charge-6-mic-app)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Samsung%20Galaxy%20S21%20Ultra-blue?style=flat-square)](https://github.com/FL4K901/JBL-Charge-6-mic-app)
 [![Design](https://img.shields.io/badge/Design-Apple%20Cupertino%20Dark%20Glass-7000FF?style=flat-square)](https://github.com/FL4K901/JBL-Charge-6-mic-app)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
+[![Security Policy](https://img.shields.io/badge/Security-OWASP%20Hardened-brightgreen?style=flat-square)](SECURITY.md)
 
 A high-performance, real-time karaoke microphone application engineered with **Google's Oboe C++ Library (AAudio)** for the **Samsung Galaxy S21 Ultra** and connected **JBL Charge 6** (as well as any Bluetooth speaker or wired headset).
 
@@ -113,6 +115,26 @@ flutter build apk --release
 
 ---
 
-## 📄 License
+## ⚖️ Intellectual Property, Rights Preservation & Trademarks
 
-MIT License © 2026 FL4K901
+### Trademark Notice & Disclaimer
+- **JBL** and **JBL Charge 6** are registered trademarks of **Harman International Industries, Incorporated**.
+- **Samsung** and **Galaxy S21 Ultra** are registered trademarks of **Samsung Electronics Co., Ltd.**
+- **Spotify** is a registered trademark of **Spotify AB**.
+- **YouTube** and **Android** are registered trademarks of **Google LLC**.
+- **Apple**, **Apple Music**, and **iOS** are registered trademarks of **Apple Inc.**
+
+*Disclaimer: This project is an independent, non-commercial open-source audio routing utility developed for personal and karaoke entertainment. It is **not** affiliated with, endorsed by, sponsored by, or associated in any way with Harman International, Samsung, Spotify, Google, Apple, or any of their respective subsidiaries.*
+
+### Rights Preservation & Author Attribution
+All original software architecture, user interface components, and native C++ Digital Signal Processing algorithms in this repository are the intellectual property of **FL4K901**.
+
+Contributions, forks, and distribution are governed by the project's [MIT License](LICENSE), provided that the original copyright notice and permission notice are retained in all copies or substantial portions of the software.
+
+---
+
+## 📄 License & Community
+
+- **License:** [MIT License](LICENSE) © 2026 FL4K901. All rights reserved.
+- **Security:** See [SECURITY.md](SECURITY.md) for vulnerability disclosure and reporting policies.
+- **Contributing:** See [CONTRIBUTING.md](CONTRIBUTING.md) for coding standards, pull request requirements, and zero-allocation DSP guidelines.

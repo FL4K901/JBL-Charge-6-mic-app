@@ -1,3 +1,6 @@
+// Copyright (c) 2026 FL4K901. All rights reserved.
+// Licensed under the MIT License. See LICENSE in the project root.
+
 #pragma once
 
 #include <oboe/Oboe.h>
