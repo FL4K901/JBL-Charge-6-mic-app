@@ -16,13 +16,13 @@ The app captures live vocals through the phone's microphone, processes them in n
 
 You can download the APK file directly to your smartphone:
 
-- 📥 **[Download Latest APK from GitHub Releases](https://github.com/FL4K901/JBL-Charge-6-mic-app/releases/latest)**
-- 📦 **[Direct Download: Mic-Karaoke-v1.0.1.apk](https://github.com/FL4K901/JBL-Charge-6-mic-app/releases/download/v1.0.1/Mic-Karaoke-v1.0.1.apk)**
+- 📥 **[Download Latest APK from GitHub Releases (v1.0.2)](https://github.com/FL4K901/JBL-Charge-6-mic-app/releases/latest)**
+- 📦 **[Direct Download: Mic-Karaoke-v1.0.2.apk](https://github.com/FL4K901/JBL-Charge-6-mic-app/releases/download/v1.0.2/Mic-Karaoke-v1.0.2.apk)**
 - ⚙️ **[Automated GitHub Actions Build Runs](https://github.com/FL4K901/JBL-Charge-6-mic-app/actions)**
 
 ### Installation Instructions for Android:
 1. Tap the download link on your phone.
-2. When the download completes, tap the file (`Mic-Karaoke-v1.0.1.apk`) to install.
+2. When the download completes, tap the file (`Mic-Karaoke-v1.0.2.apk`) to install.
 3. If prompted by Android, allow *"Install unknown apps"* for your browser.
 4. Open **Mic**, grant Microphone and Bluetooth permissions, and start singing!
 

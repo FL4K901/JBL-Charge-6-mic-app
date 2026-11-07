@@ -52,10 +52,10 @@ jobs:
           mkdir -p release-artifacts
           TAG="${GITHUB_REF_NAME}"
           if [[ "$TAG" != v* ]]; then
-            TAG="v1.0.1"
+            TAG="v1.0.2"
           fi
           echo "RELEASE_TAG=$TAG" >> $GITHUB_ENV
-          cp build/app/outputs/flutter-apk/app-release.apk release-artifacts/Mic-Karaoke-v1.0.1.apk
+          cp build/app/outputs/flutter-apk/app-release.apk release-artifacts/Mic-Karaoke-v1.0.2.apk
           cp build/app/outputs/flutter-apk/app-release.apk release-artifacts/Mic-Karaoke-${TAG}.apk
           cp build/app/outputs/flutter-apk/app-release.apk release-artifacts/app-release.apk
 
@@ -70,7 +70,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${RELEASE_TAG:-v1.0.1}"
+          TAG="${RELEASE_TAG:-v1.0.2}"
           echo "Target Release Tag: $TAG"
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "Release $TAG exists. Uploading APK assets..."
@@ -78,12 +78,14 @@ jobs:
           else
             echo "Creating Release $TAG..."
             gh release create "$TAG" \
-              --title "Mic $TAG — Real-Time Karaoke Microphone (Google Oboe Engine)" \
+              --title "Mic $TAG — Real-Time Karaoke Microphone (Hardened Oboe Engine)" \
               --notes "### 🎙️ Mic $TAG — Real-Time Karaoke Microphone App
 
-          Download **Mic-Karaoke-v1.0.1.apk** below and install it directly on your phone!
+          Download **Mic-Karaoke-v1.0.2.apk** or **app-release.apk** below and install it directly on your phone!
 
-          #### 🚀 What's New in v1.0.1:
+          #### 🚀 What's New in $TAG:
+          - **Security & Stability Hardening (OWASP Review):** Clamped native C++ audio buffers preventing overflow, thread-safe mutex on Oboe lifecycle, and NaN/denormal DSP guards.
+          - **Privacy & Android 14 Compliance:** Eliminated invasive READ_PHONE_STATE permission (handled cleanly via audio focus); added RECEIVER_NOT_EXPORTED for Android 14.
           - **Google Oboe C++ Engine:** Native AAudio engine cutting software latency to 8–16ms.
           - **Independent Mic Boost Slider:** 1.0x to 5.0x (+14 dB) independent software vocal preamp.
           - **Limiter & Hard-Clipper:** Soft-knee compression + brickwall limiter preventing digital clipping.
