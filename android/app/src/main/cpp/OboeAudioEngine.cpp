@@ -27,6 +27,7 @@ OboeAudioEngine::~OboeAudioEngine() {
 }
 
 bool OboeAudioEngine::start() {
+    std::lock_guard<std::mutex> lock(mStreamMutex);
     if (mRunning.load()) return true;
 
     LOGD("Starting Oboe duplex low-latency audio streams...");
@@ -106,6 +107,7 @@ bool OboeAudioEngine::start() {
 }
 
 void OboeAudioEngine::stop() {
+    std::lock_guard<std::mutex> lock(mStreamMutex);
     if (!mRunning.load()) return;
     mRunning.store(false);
 
@@ -157,7 +159,9 @@ oboe::DataCallbackResult OboeAudioEngine::onAudioReady(
     // Pull microphone samples from the input stream with 0 timeout (non-blocking)
     int32_t framesRead = 0;
     if (mInputStream) {
-        auto result = mInputStream->read(mInputBuffer.data(), numFrames, 0);
+        int32_t maxSafeFrames = static_cast<int32_t>(mInputBuffer.size());
+        int32_t framesToRead = std::min(numFrames, maxSafeFrames);
+        auto result = mInputStream->read(mInputBuffer.data(), framesToRead, 0);
         if (result) {
             framesRead = result.value();
         }
@@ -177,9 +181,10 @@ oboe::DataCallbackResult OboeAudioEngine::onAudioReady(
 
     for (int32_t i = 0; i < numFrames; ++i) {
         float raw = 0.0f;
-        if (i < framesRead) {
+        if (i < framesRead && i < static_cast<int32_t>(mInputBuffer.size())) {
             raw = mInputBuffer[i] / 32768.0f;
         }
+        if (!std::isfinite(raw)) raw = 0.0f;
 
         float absRaw = std::abs(raw);
         if (absRaw > maxPeak) maxPeak = absRaw;
@@ -224,6 +229,7 @@ oboe::DataCallbackResult OboeAudioEngine::onAudioReady(
 
         // 6. Analog-Style Soft Saturation limiter
         mixed = softSaturate(mixed);
+        if (!std::isfinite(mixed)) mixed = 0.0f;
 
         // 7. Brickwall Hard-Clipper strictly clamping to [-32768, 32767]
         int32_t pcm = static_cast<int32_t>(mixed * 32767.0f);

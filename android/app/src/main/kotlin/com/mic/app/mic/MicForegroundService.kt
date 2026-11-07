@@ -17,11 +17,9 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import android.telephony.PhoneStateListener
-import android.telephony.TelephonyCallback
-import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 
 /**
  * Foreground Service for persistent background microphone processing and edge-case management.
@@ -29,7 +27,7 @@ import androidx.core.app.NotificationCompat
  * Edge cases handled:
  * 1. Bluetooth Disconnect (ACTION_AUDIO_BECOMING_NOISY & AudioDeviceCallback):
  *    Auto-mutes mic to prevent phone speaker feedback blast.
- * 2. Incoming/Ongoing Phone Calls (TelephonyManager):
+ * 2. Incoming/Ongoing Phone Calls & Audio Interruptions (AudioManager Focus Listener):
  *    Auto-pauses mic capture during calls to free hardware mic, then auto-resumes.
  * 3. Background Persistence:
  *    Maintains FOREGROUND_SERVICE_TYPE_MICROPHONE and WakeLock so user can minimize
@@ -56,12 +54,10 @@ class MicForegroundService : Service() {
         private set
 
     private var wakeLock: PowerManager.WakeLock? = null
-    private var isPausedForCall = false
 
     // Receivers and Callbacks
     private var noisyReceiver: BroadcastReceiver? = null
     private var audioDeviceCallback: AudioDeviceCallback? = null
-    private var telephonyCallback: Any? = null // Supports both TelephonyCallback (API 31+) & PhoneStateListener
 
     override fun onCreate() {
         super.onCreate()
@@ -71,10 +67,17 @@ class MicForegroundService : Service() {
         acquireWakeLock()
         registerBecomingNoisyReceiver()
         registerAudioDeviceCallback()
-        registerCallStateListener()
 
         audioEngine.onDeviceChanged = { deviceName, isBt ->
             updateNotification("Active: $deviceName", isBt)
+        }
+        audioEngine.onFocusInterrupted = { interrupted ->
+            if (interrupted) {
+                updateNotification("Paused for Call / Audio Interrupt", false)
+            } else {
+                val (devName, isBt) = audioEngine.getConnectedOutputDeviceInfo()
+                updateNotification("Routing to $devName", isBt)
+            }
         }
     }
 
@@ -219,7 +222,7 @@ class MicForegroundService : Service() {
             }
         }
         val filter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
-        registerReceiver(noisyReceiver, filter)
+        ContextCompat.registerReceiver(this, noisyReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     /**
@@ -239,64 +242,6 @@ class MicForegroundService : Service() {
         audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
     }
 
-    /**
-     * Phone call state listener: Pauses microphone capture when phone rings or is on a call,
-     * and resumes afterward.
-     */
-    @Suppress("DEPRECATION")
-    private fun registerCallStateListener() {
-        val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val callback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
-                override fun onCallStateChanged(state: Int) {
-                    handleCallState(state)
-                }
-            }
-            telephonyCallback = callback
-            try {
-                telephonyManager.registerTelephonyCallback(mainExecutor, callback)
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not register TelephonyCallback: ${e.message}")
-            }
-        } else {
-            val listener = object : PhoneStateListener() {
-                override fun onCallStateChanged(state: Int, phoneNumber: String?) {
-                    handleCallState(state)
-                }
-            }
-            telephonyCallback = listener
-            try {
-                telephonyManager.listen(listener, PhoneStateListener.LISTEN_CALL_STATE)
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not register PhoneStateListener: ${e.message}")
-            }
-        }
-    }
-
-    private fun handleCallState(state: Int) {
-        when (state) {
-            TelephonyManager.CALL_STATE_RINGING,
-            TelephonyManager.CALL_STATE_OFFHOOK -> {
-                if (audioEngine.isRunning && !isPausedForCall) {
-                    Log.d(TAG, "Call detected. Pausing mic engine to release hardware mic.")
-                    isPausedForCall = true
-                    audioEngine.stop()
-                    updateNotification("Paused for Phone Call", false)
-                }
-            }
-            TelephonyManager.CALL_STATE_IDLE -> {
-                if (isPausedForCall) {
-                    Log.d(TAG, "Call ended. Resuming mic engine.")
-                    isPausedForCall = false
-                    audioEngine.start()
-                    val (devName, isBt) = audioEngine.getConnectedOutputDeviceInfo()
-                    updateNotification("Routing to $devName", isBt)
-                }
-            }
-        }
-    }
-
     private fun unregisterReceivers() {
         try {
             noisyReceiver?.let { unregisterReceiver(it) }
@@ -308,15 +253,5 @@ class MicForegroundService : Service() {
             audioDeviceCallback?.let { audioManager.unregisterAudioDeviceCallback(it) }
         } catch (_: Exception) {}
         audioDeviceCallback = null
-
-        try {
-            val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && telephonyCallback is TelephonyCallback) {
-                telephonyManager.unregisterTelephonyCallback(telephonyCallback as TelephonyCallback)
-            } else if (telephonyCallback is PhoneStateListener) {
-                telephonyManager.listen(telephonyCallback as PhoneStateListener, PhoneStateListener.LISTEN_NONE)
-            }
-        } catch (_: Exception) {}
-        telephonyCallback = null
     }
 }

@@ -203,6 +203,7 @@ class AudioDspProcessor(
     }
 
     private fun softSaturate(x: Float): Float {
+        if (x.isNaN() || x.isInfinite()) return 0.0f
         return when {
             x > 1.25f -> 1.0f
             x < -1.25f -> -1.0f

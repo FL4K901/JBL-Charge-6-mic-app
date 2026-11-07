@@ -13,9 +13,6 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
-    <!-- Phone state to auto-pause mic during incoming phone calls -->
-    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-
     <application
         android:label="Mic"
         android:name="${applicationName}"

@@ -58,6 +58,8 @@ class AudioEngine(private val context: Context) {
 
     var onStateChanged: ((Boolean) -> Unit)? = null
     var onDeviceChanged: ((String, Boolean) -> Unit)? = null
+    var onFocusInterrupted: ((Boolean) -> Unit)? = null
+    @Volatile private var isInterruptedByFocus: Boolean = false
 
     /**
      * Start the real-time audio pipeline and request background audio ducking.
@@ -269,6 +271,28 @@ class AudioEngine(private val context: Context) {
      */
     private fun requestBackgroundDucking() {
         try {
+            val focusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+                when (focusChange) {
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+                    AudioManager.AUDIOFOCUS_LOSS -> {
+                        Log.d(TAG, "Audio focus interrupted (e.g. call or exclusive app). Auto-pausing mic.")
+                        if (isRunning && !isInterruptedByFocus) {
+                            isInterruptedByFocus = true
+                            stop()
+                            onFocusInterrupted?.invoke(true)
+                        }
+                    }
+                    AudioManager.AUDIOFOCUS_GAIN -> {
+                        if (isInterruptedByFocus) {
+                            Log.d(TAG, "Audio focus restored. Resuming mic.")
+                            isInterruptedByFocus = false
+                            start()
+                            onFocusInterrupted?.invoke(false)
+                        }
+                    }
+                }
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val playbackAttributes = AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -279,7 +303,7 @@ class AudioEngine(private val context: Context) {
                     .setAudioAttributes(playbackAttributes)
                     .setAcceptsDelayedFocusGain(false)
                     .setWillPauseWhenDucked(false) // Lowers music by 30% instead of pausing
-                    .setOnAudioFocusChangeListener { /* maintain continuous playback */ }
+                    .setOnAudioFocusChangeListener(focusListener)
                     .build()
 
                 val res = audioManager.requestAudioFocus(focusRequest!!)
@@ -287,7 +311,7 @@ class AudioEngine(private val context: Context) {
             } else {
                 @Suppress("DEPRECATION")
                 audioManager.requestAudioFocus(
-                    null,
+                    focusListener,
                     AudioManager.STREAM_MUSIC,
                     AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
                 )

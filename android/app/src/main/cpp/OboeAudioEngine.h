@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cmath>
 #include <memory>
+#include <mutex>
 
 /**
  * Ultra-low latency Real-Time Audio Engine utilizing Google Oboe and Android AAudio.
@@ -112,8 +113,12 @@ private:
     float mDuckingGain{1.0f};
     int mHighEnergyCount{0};
 
+    // Thread synchronization for lifecycle operations
+    std::mutex mStreamMutex;
+
     // DSP limiting helpers
     inline float softSaturate(float x) {
+        if (!std::isfinite(x)) return 0.0f;
         if (x > 1.25f) return 1.0f;
         if (x < -1.25f) return -1.0f;
         if (x > 0.6f) return 0.6f + (x - 0.6f) / (1.0f + ((x - 0.6f) * (x - 0.6f)));
